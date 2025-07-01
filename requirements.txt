@@ -1,0 +1,9 @@
+Flask==2.3.3 # Or a more recent stable version
+Flask-SQLAlchemy==3.1.1 # Or a more recent stable version
+Flask-Migrate==4.0.5 # Or a more recent stable version
+python-dotenv==1.0.0 # Or a more recent stable version
+# Add other dependencies as needed, e.g.:
+# Flask-WTF
+# Flask-Login (if implementing user authentication)
+# psycopg2-binary (if using PostgreSQL)
+# mysqlclient (if using MySQL)
