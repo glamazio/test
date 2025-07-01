@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h2>Dashboard</h2>
+            <p class="lead">Panoramica del negozio per oggi: {{ current_date.strftime('%A, %d %B %Y') }}</p>
+        </div>
+    </div>
+
+    {% if critical_alerts %}
+        <div class="row mb-3">
+            <div class="col">
+                <h4><i class="bi bi-exclamation-triangle-fill text-danger"></i> Avvisi Critici</h4>
+                {% for alert in critical_alerts %}
+                    <div class="alert alert-danger" role="alert">
+                        {{ alert }}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Turni di Oggi -->
+        <div class="col-md-8">
+            <h4><i class="bi bi-calendar-check"></i> Turni di Oggi</h4>
+            {% if todays_shifts %}
+                <div class="list-group">
+                    {% for shift in todays_shifts %}
+                        <a href="{{ url_for('main.edit_shift', shift_id=shift.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ shift.employee.full_name }}</h5>
+                                <small class="text-muted">{{ shift.start_time.strftime('%H:%M') }} - {{ shift.end_time.strftime('%H:%M') }} ({{ "%.2f"|format(shift.duration_hours) }}h)</small>
+                            </div>
+                            <p class="mb-1">Ruolo: {{ shift.employee.role.name if shift.employee.role else 'N/D' }}</p>
+                            {% if shift.notes %}
+                            <small class="text-muted">Note: {{ shift.notes }}</small>
+                            {% endif %}
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    Nessun turno programmato per oggi. <a href="{{ url_for('main.create_shift', date=current_date.strftime('%Y-%m-%d')) }}" class="alert-link">Aggiungi un turno</a>.
+                </div>
+            {% endif %}
+            <div class="mt-3">
+                 <a href="{{ url_for('main.view_shifts', date=current_date.strftime('%Y-%m-%d')) }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calendar-week"></i> Vedi Calendario Turni
+                </a>
+                <a href="{{ url_for('main.create_shift', date=current_date.strftime('%Y-%m-%d')) }}" class="btn btn-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Aggiungi Turno per Oggi
+                </a>
+            </div>
+        </div>
+
+        <!-- Personale Timbrato / Azioni Rapide -->
+        <div class="col-md-4">
+            <h4><i class="bi bi-person-check"></i> Timbrature Attive</h4>
+            {% if clocked_in_now %}
+                <ul class="list-group mb-3">
+                    {% for timelog in clocked_in_now %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="bi bi-person-fill text-success"></i> {{ timelog.employee.full_name }}
+                            <small class="d-block text-muted">Entrato: {{ timelog.clock_in_time.strftime('%H:%M') }} ({{ (utcnow() - timelog.clock_in_time).total_seconds() // 3600 }}h {{ ((utcnow() - timelog.clock_in_time).total_seconds() % 3600) // 60 }}m fa)</small>
+                        </span>
+                        <form method="POST" action="{{ url_for('main.manage_time_logs', date=current_date.strftime('%Y-%m-%d')) }}" class="d-inline">
+                            <input type="hidden" name="action" value="clock_out">
+                            <input type="hidden" name="employee_id" value="{{ timelog.employee_id }}">
+                            <button type="submit" class="btn btn-warning btn-sm" title="Timbra Uscita">
+                                <i class="bi bi-box-arrow-right"></i> Out
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="alert alert-secondary">Nessun dipendente attualmente timbrato in entrata.</div>
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    Azioni Rapide Timbratura
+                </div>
+                <div class="card-body">
+                     <a href="{{ url_for('main.manage_time_logs', date=current_date.strftime('%Y-%m-%d')) }}" class="btn btn-info w-100 mb-2">
+                        <i class="bi bi-fingerprint"></i> Gestisci Timbrature
+                    </a>
+                    <!-- Quick Clock In (Potrebbe essere un modale per selezionare dipendente) -->
+                    <!-- Button to trigger modal -->
+                    <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#quickClockInModal">
+                        <i class="bi bi-box-arrow-in-left"></i> Timbra Entrata Rapida
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Quick Clock In -->
+    <div class="modal fade" id="quickClockInModal" tabindex="-1" aria-labelledby="quickClockInModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('main.manage_time_logs', date=current_date.strftime('%Y-%m-%d')) }}">
+                    <input type="hidden" name="action" value="clock_in">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="quickClockInModalLabel">Timbra Entrata</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="employee_id_clock_in" class="form-label">Seleziona Dipendente:</label>
+                            <select class="form-select" id="employee_id_clock_in" name="employee_id" required>
+                                <option value="" selected disabled>--- Scegli Dipendente ---</option>
+                                {% set active_employees = get_active_employees() %} {# Assume a helper or pass from route #}
+                                {% if active_employees %}
+                                    {% for emp in active_employees %}
+                                        {% if emp.id not in clocked_in_now|map(attribute='employee_id')|list %}
+                                             <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="" disabled>Nessun dipendente attivo trovato</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <p class="text-muted"><small>La timbratura avverrà con l'orario corrente del server.</small></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-in-left"></i> Timbra Entrata</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Eventuale JS specifico per la dashboard
+    // Ad esempio, per aggiornare dinamicamente parti della pagina
+});
+
+// Per popolare il modale, potresti voler passare 'active_employees' dalla route
+// e 'clocked_in_now' (o solo gli ID) per filtrare la select.
+// Ho aggiunto un placeholder per get_active_employees() e un filtro nel template.
+// Sarebbe meglio passare questi dati direttamente dalla route `index` in `routes.py`.
+// Per ora, lascio il placeholder, ma dovrà essere implementato in Python.
+// Esempio di come potresti passare i dati dalla route:
+// active_employees_list = Employee.query.filter_by(is_active=True).all()
+// return render_template('dashboard.html', ..., active_employees=active_employees_list)
+</script>
+{% endblock %}
+
+{# Jinja2 Global Helper (da definire in app/__init__.py o passare via context_processor) #}
+{# {% macro get_active_employees() %}
+    {% set employees_query = Employee.query.filter_by(is_active=True).order_by(Employee.last_name).all() %}
+    {{ return(employees_query) }}
+{% endmacro %} #}
+
+{# Helper per ottenere UTC now nel template, se necessario e non già disponibile #}
+{% macro utcnow() %}
+    {% import datetime %}
+    {{ return(datetime.datetime.utcnow()) }}
+{% endmacro %}
+```
+
+**Nota:**
+Nel template `dashboard.html` ho inserito un esempio di modale per la "Timbratura Entrata Rapida".
+Questo modale richiede una lista di dipendenti attivi che non siano già timbrati.
+Idealmente, la lista `active_employees` dovrebbe essere passata dalla route `main.index` in `routes.py`.
+Ho aggiunto un commento nel template e un placeholder per una macro Jinja2 `get_active_employees()`.
+Inoltre, ho aggiunto una macro `utcnow()` per calcolare da quanto tempo un dipendente è timbrato. Queste macro dovrebbero essere rese disponibili globalmente tramite `app.context_processor` in `app/__init__.py` o i dati passati direttamente.
+
+Per ora, procedo con la creazione degli altri template. L'effettivo popolamento dinamico di queste select e altri elementi interattivi verrà affinato quando si implementeranno le logiche specifiche nelle route.
+La route `main.index` in `app/routes.py` dovrebbe essere aggiornata per passare `active_employees` al template:
+```python
+# in app/routes.py, dentro la route @bp.route('/')
+from .models import Employee # assicurati che sia importato
+# ...
+active_employees_list = Employee.query.filter_by(is_active=True).order_by(Employee.last_name).all()
+# ...
+return render_template('dashboard.html',
+                       # ... altri dati
+                       active_employees=active_employees_list,
+                       clocked_in_now=clocked_in_now # già presente
+                       )
+```
+E la macro `utcnow` può essere resa disponibile con:
+```python
+# in app/__init__.py
+import datetime
+
+def create_app():
+    # ...
+    @app.context_processor
+    def inject_now():
+        return {'utcnow': datetime.datetime.utcnow}
+    # ...
+    return app
+```
+Farò questi aggiustamenti al codice Python in un secondo momento se necessario, o si può presumere che tali dati siano forniti correttamente dalle route. Per ora mi concentro sulla struttura HTML.

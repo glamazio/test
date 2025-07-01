@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Reportistica - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-file-earmark-bar-graph"></i> Reportistica</h2>
+    <p>Visualizza report su ore lavorate, costi del personale e altre metriche.</p>
+
+    <!-- Filtri Comuni per i Report -->
+    <div class="card mb-4">
+        <div class="card-header">Filtri Report</div>
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('main.reports') }}">
+                <input type="hidden" name="type" value="{{ request.args.get('type', 'weekly_hours_summary') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="date_from" class="form-label">Da Data:</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from_str }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="date_to" class="form-label">A Data:</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to_str }}">
+                    </div>
+                    <!-- Aggiungere altri filtri comuni se necessario, es. per dipendente, ruolo -->
+                    <!--
+                    <div class="col-md-3">
+                        <label for="reportEmployeeFilter" class="form-label">Dipendente:</label>
+                        <select class="form-select" id="reportEmployeeFilter" name="employee_id">
+                            <option value="all">Tutti</option>
+                            {# Loop through employees #}
+                        </select>
+                    </div>
+                    -->
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Genera Report</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tipi di Report (Navigazione o Selezione) -->
+    <!-- Per ora, il tipo di report è gestito via query param 'type' -->
+    <!-- Si potrebbe avere una nav-tabs qui per selezionare il tipo di report -->
+    <!--
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link {% if report_type == 'weekly_hours_summary' %}active{% endif %}"
+               href="{{ url_for('main.reports', type='weekly_hours_summary', date_from=date_from_str, date_to=date_to_str) }}">
+               Riepilogo Ore Settimanali
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if report_type == 'cost_summary' %}active{% endif %}" href="#">Riepilogo Costi (Non Impl.)</a>
+        </li>
+    </ul>
+    -->
+
+    <!-- Contenuto del Report Specifico -->
+    {% if report_type == 'weekly_hours_summary' %}
+    <div class="card">
+        <div class="card-header">
+            <h4>Riepilogo Ore Lavorate per Dipendente</h4>
+            <p class="text-muted">Periodo: {{ date_from_str }} - {{ date_to_str }}</p>
+        </div>
+        <div class="card-body">
+            {% if report_data %}
+            <div class="table-responsive">
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Dipendente</th>
+                            <th>Totale Ore Lavorate</th>
+                            <th>Numero Timbrature</th>
+                            <!--<th>Costo Stimato (Opzionale)</th>-->
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in report_data %}
+                        <tr>
+                            <td>{{ item.employee_name }}</td>
+                            <td>{{ "%.2f"|format(item.total_hours) }} ore</td>
+                            <td>{{ item.logs_count }}</td>
+                            <!--<td>€ ... </td>-->
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">Nessun dato trovato per il periodo selezionato.</div>
+            {% endif %}
+        </div>
+        <div class="card-footer text-muted">
+            Questo report include solo timbrature completate (con entrata e uscita) nel periodo specificato.
+        </div>
+    </div>
+
+    {% elif report_type == 'other_report_type' %}
+    {# Blocco per un altro tipo di report #}
+    <div class="alert alert-info">Report 'Altro Tipo' non ancora implementato.</div>
+
+    {% else %}
+    <div class="alert alert-warning">Seleziona un tipo di report valido o implementane uno.</div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Eventuali script per grafici o interattività dei report
+    // Esempio: Inizializzazione di una libreria di grafici come Chart.js
+    // if (document.getElementById('myChart')) {
+    //     const ctx = document.getElementById('myChart').getContext('2d');
+    //     const myChart = new Chart(ctx, {
+    //         type: 'bar', // or 'line', 'pie', etc.
+    //         data: {
+    //             labels: [{% for item in report_data %}'{{ item.employee_name }}',{% endfor %}],
+    //             datasets: [{
+    //                 label: 'Ore Lavorate',
+    //                 data: [{% for item in report_data %}{{ item.total_hours }},{% endfor %}],
+    //                 backgroundColor: 'rgba(0, 123, 255, 0.5)',
+    //                 borderColor: 'rgba(0, 123, 255, 1)',
+    //                 borderWidth: 1
+    //             }]
+    //         },
+    //         options: {
+    //             scales: {
+    //                 y: {
+    //                     beginAtZero: true
+    //                 }
+    //             }
+    //         }
+    //     });
+    // }
+});
+</script>
+{# Se si usano grafici, includere la libreria, es: #}
+{# <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> #}
+{% endblock %}

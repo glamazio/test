@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Visualizza Turni - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .calendar-day .shift-entry {
+        display: block; /* Make each shift take its own line for clarity */
+        margin-bottom: 4px;
+    }
+    .calendar-day .shift-actions {
+        font-size: 0.8em;
+        opacity: 0; /* Hidden by default */
+        transition: opacity 0.2s ease-in-out;
+    }
+    .calendar-day .shift-entry-container:hover .shift-actions {
+        opacity: 1; /* Show on hover */
+    }
+     .current-day-indicator {
+        background-color: #007bff !important; /* Bootstrap primary blue */
+        color: white !important;
+        border-radius: 50%;
+        width: 28px;
+        height: 28px;
+        line-height: 28px;
+        text-align: center;
+        display: inline-block;
+    }
+    .today .date-number span { /* Style for today's date number */
+         /* Handled by current-day-indicator if it's today */
+    }
+    .calendar-day.today {
+        background-color: #f8f9fa; /* Light background for today cell */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4"> {# Changed to container-fluid for wider calendar #}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2><i class="bi bi-calendar-week"></i> Calendario Turni</h2>
+        <div>
+            <a href="{{ url_for('main.create_shift', date=selected_date.strftime('%Y-%m-%d')) }}" class="btn btn-success">
+                <i class="bi bi-plus-circle"></i> Nuovo Turno
+            </a>
+        </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('main.view_shifts') }}" class="row g-3 align-items-center mb-3">
+        <div class="col-auto">
+            <label for="dateFilter" class="col-form-label">Seleziona Settimana (via data):</label>
+        </div>
+        <div class="col-auto">
+            <input type="date" class="form-control" id="dateFilter" name="date" value="{{ selected_date.strftime('%Y-%m-%d') }}">
+        </div>
+        <div class="col-auto">
+            <label for="employeeFilter" class="col-form-label">Filtra per Dipendente:</label>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" id="employeeFilter" name="employee_id">
+                <option value="all" {% if not selected_employee_id %}selected{% endif %}>Tutti i Dipendenti</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary"><i class="bi bi-funnel"></i> Filtra</button>
+        </div>
+    </form>
+
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <a href="{{ url_for('main.view_shifts', date=(selected_date - timedelta(days=7)).strftime('%Y-%m-%d'), employee_id=request.args.get('employee_id', 'all')) }}" class="btn btn-outline-secondary btn-sm">&laquo; Sett. Prec.</a>
+            <h4>Settimana dal {{ week_dates[0].strftime('%d %b') }} al {{ week_dates[-1].strftime('%d %b %Y') }}</h4>
+            <a href="{{ url_for('main.view_shifts', date=(selected_date + timedelta(days=7)).strftime('%Y-%m-%d'), employee_id=request.args.get('employee_id', 'all')) }}" class="btn btn-outline-secondary btn-sm">Sett. Succ. &raquo;</a>
+        </div>
+
+        <div class="calendar-grid">
+            {% set days_of_week = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"] %}
+            {% for day_name in days_of_week %}
+                <div class="calendar-day-header">{{ day_name }}</div>
+            {% endfor %}
+
+            {% for day_date in week_dates %}
+                {% set is_today = (day_date == date.today()) %}
+                <div class="calendar-day {% if is_today %}today{% endif %}">
+                    <div class="date-number">
+                        <span class="{{ 'current-day-indicator' if is_today else '' }}">{{ day_date.day }}</span>
+                         <a href="{{ url_for('main.create_shift', date=day_date.strftime('%Y-%m-%d')) }}" class="btn btn-outline-success btn-sm p-0 ms-1" style="line-height: 1; width: 18px; height: 18px;" title="Aggiungi turno per {{ day_date.strftime('%d/%m') }}">
+                            <i class="bi bi-plus" style="font-size: 0.9rem; vertical-align: top;"></i>
+                        </a>
+                    </div>
+
+                    {% if shifts_by_day[day_date] %}
+                        {% for shift in shifts_by_day[day_date] %}
+                        <div class="shift-entry-container">
+                            <div class="shift-entry" title="{{ shift.employee.full_name }} ({{ shift.start_time.strftime('%H:%M') }} - {{ shift.end_time.strftime('%H:%M') }}) - {{ shift.notes if shift.notes else 'Nessuna nota' }}">
+                                <strong>{{ shift.employee.first_name[0] }}. {{ shift.employee.last_name }}</strong>
+                                <small>{{ shift.start_time.strftime('%H:%M') }} - {{ shift.end_time.strftime('%H:%M') }}</small>
+                                {% if shift.notes %}<small class="text-truncate d-block" style="max-width: 100%;"><em>{{ shift.notes|truncate(20) }}</em></small>{% endif %}
+                            </div>
+                            <div class="shift-actions">
+                                <a href="{{ url_for('main.edit_shift', shift_id=shift.id) }}" class="btn btn-link-style btn-sm p-0 me-1" title="Modifica Turno">
+                                    <i class="bi bi-pencil-square"></i>
+                                </a>
+                                <form method="POST" action="{{ url_for('main.delete_shift', shift_id=shift.id) }}" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo turno?');">
+                                    <button type="submit" class="btn btn-link-style btn-link-style-danger btn-sm p-0" title="Elimina Turno">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted text-small" style="font-size:0.8em;">Nessun turno</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Optional: Shift Details Modal (if not using direct links for edit/delete) -->
+    <!--
+    <div class="modal fade" id="shiftDetailModal" tabindex="-1" aria-labelledby="shiftDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="shiftDetailModalLabel">Dettagli Turno</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Dipendente:</strong> <span id="modalEmployeeName"></span></p>
+                    <p><strong>Data:</strong> <span id="modalShiftDate"></span></p>
+                    <p><strong>Orario:</strong> <span id="modalShiftTime"></span></p>
+                    <p><strong>Durata:</strong> <span id="modalShiftDuration"></span> ore</p>
+                    <p><strong>Note:</strong> <span id="modalShiftNotes"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <a href="#" id="modalEditShiftLink" class="btn btn-warning">Modifica</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    -->
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // const shiftDetailModal = new bootstrap.Modal(document.getElementById('shiftDetailModal'));
+    // document.querySelectorAll('.shift-entry').forEach(entry => {
+    //     entry.addEventListener('click', function () {
+    //         // Populate modal with data from data-* attributes or fetched via API
+    //         // document.getElementById('modalEmployeeName').textContent = this.dataset.employeeName;
+    //         // ... other fields ...
+    //         // document.getElementById('modalEditShiftLink').href = this.dataset.editUrl;
+    //         // shiftDetailModal.show();
+    //     });
+    // });
+
+    // Ensure date.today() is available for comparison or pass from Python
+    // For simplicity, the 'today' class is added server-side.
+});
+</script>
+{% endblock %}

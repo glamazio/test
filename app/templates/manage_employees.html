@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Personale e Ruoli - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-people-fill"></i> Gestione Personale e Ruoli</h2>
+
+    <!-- Sezione Aggiungi/Modifica Dipendente (Modal) -->
+    <div class="modal fade" id="employeeFormModal" tabindex="-1" aria-labelledby="employeeFormModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('main.manage_employees') }}" id="employeeForm">
+                    <input type="hidden" name="action" id="employeeAction">
+                    <input type="hidden" name="employee_id" id="employeeId">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="employeeFormModalLabel">Aggiungi Dipendente</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="first_name" class="form-label">Nome <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="last_name" class="form-label">Cognome <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="phone_number" class="form-label">Telefono</label>
+                                <input type="tel" class="form-control" id="phone_number" name="phone_number">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="role_id" class="form-label">Ruolo</label>
+                            <select class="form-select" id="role_id" name="role_id">
+                                <option value="">-- Seleziona Ruolo --</option>
+                                {% for role in roles %}
+                                <option value="{{ role.id }}">{{ role.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="availability_notes" class="form-label">Note Disponibilità</label>
+                            <textarea class="form-control" id="availability_notes" name="availability_notes" rows="3"></textarea>
+                            <small class="form-text text-muted">Es. "Lun-Ven 9-17, preferibilmente mattina". La gestione granulare per fasce orarie sarà implementata successivamente.</small>
+                        </div>
+                         <div class="mb-3 form-check form-switch" id="isActiveSwitchContainer" style="display: none;">
+                            <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">Attivo</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary" id="employeeSubmitButton">Salva Dipendente</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sezione Aggiungi Ruolo (Modal) -->
+    <div class="modal fade" id="roleFormModal" tabindex="-1" aria-labelledby="roleFormModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('main.manage_employees') }}">
+                    <input type="hidden" name="action" value="add_role">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="roleFormModalLabel">Aggiungi Nuovo Ruolo</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="role_name" class="form-label">Nome Ruolo <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="role_name" name="role_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="role_description" class="form-label">Descrizione</label>
+                            <textarea class="form-control" id="role_description" name="role_description" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary">Salva Ruolo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pulsanti Azione -->
+    <div class="mb-3">
+        <button type="button" class="btn btn-success" onclick="openEmployeeModal('add_employee')">
+            <i class="bi bi-person-plus-fill"></i> Aggiungi Dipendente
+        </button>
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#roleFormModal">
+            <i class="bi bi-tags-fill"></i> Aggiungi Ruolo
+        </button>
+    </div>
+
+    <!-- Lista Dipendenti -->
+    <h4><i class="bi bi-list-ul"></i> Elenco Dipendenti</h4>
+    {% if employees %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Cognome</th>
+                    <th>Email</th>
+                    <th>Telefono</th>
+                    <th>Ruolo</th>
+                    <th>Stato</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                <tr>
+                    <td>{{ emp.first_name }}</td>
+                    <td>{{ emp.last_name }}</td>
+                    <td>{{ emp.email if emp.email else '-' }}</td>
+                    <td>{{ emp.phone_number if emp.phone_number else '-' }}</td>
+                    <td>{{ emp.role.name if emp.role else 'N/A' }}</td>
+                    <td>
+                        {% if emp.is_active %}
+                            <span class="badge bg-success">Attivo</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inattivo</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-warning btn-sm" title="Modifica"
+                                onclick="openEmployeeModal('edit_employee', {{ emp.id }}, '{{ emp.first_name }}', '{{ emp.last_name }}', '{{ emp.email if emp.email else '' }}', '{{ emp.phone_number if emp.phone_number else '' }}', {{ emp.role_id if emp.role_id else 'null' }}, '{{ emp.availability_notes if emp.availability_notes else '' }}', {{ 'true' if emp.is_active else 'false' }})">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('main.manage_employees') }}" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo dipendente? Questa azione non può essere annullata.');">
+                            <input type="hidden" name="action" value="delete_employee">
+                            <input type="hidden" name="delete_employee_id" value="{{ emp.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Elimina">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Nessun dipendente trovato. <a href="#" onclick="openEmployeeModal('add_employee')" class="alert-link">Aggiungine uno!</a></div>
+    {% endif %}
+
+    <hr class="my-4">
+
+    <!-- Lista Ruoli -->
+    <h4><i class="bi bi-tags"></i> Elenco Ruoli</h4>
+    {% if roles %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover table-sm">
+            <thead>
+                <tr>
+                    <th>Nome Ruolo</th>
+                    <th>Descrizione</th>
+                    <th>N. Dipendenti</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for role in roles %}
+                <tr>
+                    <td>{{ role.name }}</td>
+                    <td>{{ role.description if role.description else '-' }}</td>
+                    <td>{{ role.employees.count() }}</td>
+                    <td>
+                        <!-- <button type="button" class="btn btn-warning btn-sm" title="Modifica Ruolo (Non implementato)">
+                            <i class="bi bi-pencil-square"></i>
+                        </button> -->
+                        <form method="POST" action="{{ url_for('main.manage_employees') }}" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questo ruolo? Può essere eliminato solo se non è assegnato a nessun dipendente.');">
+                            <input type="hidden" name="action" value="delete_role">
+                            <input type="hidden" name="delete_role_id" value="{{ role.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Elimina Ruolo" {% if role.employees.count() > 0 %}disabled{% endif %}>
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Nessun ruolo definito. <a href="#" data-bs-toggle="modal" data-bs-target="#roleFormModal" class="alert-link">Aggiungine uno!</a></div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function openEmployeeModal(action, id = null, firstName = '', lastName = '', email = '', phone = '', roleId = null, availability = '', isActive = true) {
+    const modal = new bootstrap.Modal(document.getElementById('employeeFormModal'));
+    const form = document.getElementById('employeeForm');
+    document.getElementById('employeeAction').value = action;
+
+    if (action === 'add_employee') {
+        document.getElementById('employeeFormModalLabel').textContent = 'Aggiungi Dipendente';
+        document.getElementById('employeeSubmitButton').textContent = 'Salva Dipendente';
+        form.reset(); // Clear form fields
+        document.getElementById('employeeId').value = '';
+        document.getElementById('isActiveSwitchContainer').style.display = 'none'; // Hide for new employee, default active
+        document.getElementById('is_active').checked = true;
+    } else if (action === 'edit_employee') {
+        document.getElementById('employeeFormModalLabel').textContent = 'Modifica Dipendente';
+        document.getElementById('employeeSubmitButton').textContent = 'Aggiorna Dipendente';
+        document.getElementById('employeeId').value = id;
+        document.getElementById('first_name').value = firstName;
+        document.getElementById('last_name').value = lastName;
+        document.getElementById('email').value = email;
+        document.getElementById('phone_number').value = phone;
+        document.getElementById('role_id').value = roleId === null ? '' : roleId;
+        document.getElementById('availability_notes').value = availability;
+        document.getElementById('isActiveSwitchContainer').style.display = 'block'; // Show for edit
+        document.getElementById('is_active').checked = isActive;
+    }
+    modal.show();
+}
+</script>
+{% endblock %}

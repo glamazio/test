@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Timbrature - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-fingerprint"></i> Gestione Timbrature</h2>
+    <p>Registra e visualizza le ore di lavoro effettive dei dipendenti.</p>
+
+    <!-- Filtri -->
+    <form method="GET" action="{{ url_for('main.manage_time_logs') }}" class="row g-3 align-items-center mb-4">
+        <div class="col-auto">
+            <label for="dateFilter" class="col-form-label">Data:</label>
+        </div>
+        <div class="col-auto">
+            <input type="date" class="form-control" id="dateFilter" name="date" value="{{ selected_date_str }}">
+        </div>
+        <div class="col-auto">
+            <label for="employeeFilter" class="col-form-label">Dipendente:</label>
+        </div>
+        <div class="col-auto">
+            <select class="form-select" id="employeeFilter" name="employee_id">
+                <option value="all" {% if not selected_employee_id %}selected{% endif %}>Tutti i Dipendenti</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if selected_employee_id == emp.id %}selected{% endif %}>{{ emp.full_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel"></i> Filtra</button>
+        </div>
+    </form>
+
+    <!-- Azioni Rapide: Clock In/Out -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="bi bi-clock-fill"></i> Azioni Rapide Timbratura (per oggi, ora server UTC)
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.manage_time_logs', date=selected_date_str, employee_id=request.args.get('employee_id','all')) }}" class="row g-3 timelog-actions">
+                <div class="col-md-5">
+                    <select class="form-select" name="employee_id" required id="quickActionEmployeeSelect">
+                        <option value="" selected disabled>-- Seleziona Dipendente --</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if emp in clocked_in_employees %}data-clocked-in="true"{% endif %}>
+                                {{ emp.full_name }} {% if emp in clocked_in_employees %}(Già Entrato){% endif %}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-auto">
+                    <button type="submit" name="action" value="clock_in" class="btn btn-success" id="quickClockInBtn">
+                        <i class="bi bi-box-arrow-in-right"></i> Timbra Entrata
+                    </button>
+                </div>
+                <div class="col-md-auto">
+                     <button type="submit" name="action" value="clock_out" class="btn btn-warning" id="quickClockOutBtn">
+                        <i class="bi bi-box-arrow-left"></i> Timbra Uscita
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Tabella Timbrature del Giorno Selezionato -->
+    <h4><i class="bi bi-list-check"></i> Timbrature del {{ selected_date_str }}</h4>
+    {% if time_logs %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>Dipendente</th>
+                    <th>Entrata (UTC)</th>
+                    <th>Uscita (UTC)</th>
+                    <th>Durata</th>
+                    <th>Note</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in time_logs %}
+                <tr id="log_row_{{ log.id }}">
+                    <td>{{ log.employee.full_name }}</td>
+                    <td>{{ log.clock_in_time.strftime('%Y-%m-%d %H:%M:%S') if log.clock_in_time else '-' }}</td>
+                    <td>
+                        {% if log.clock_out_time %}
+                            {{ log.clock_out_time.strftime('%Y-%m-%d %H:%M:%S') }}
+                        {% elif log.employee in clocked_in_employees %}
+                            <span class="badge bg-success">Attualmente Timbrato</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if log.clock_out_time %}
+                            {{ "%.2f"|format(log.worked_hours) }}h
+                        {% elif log.clock_in_time %}
+                            In corso...
+                        {% else %}
+                            N/D
+                        {% endif %}
+                    </td>
+                    <td>{{ log.notes if log.notes else '-' }}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm" title="Modifica" onclick="toggleEditForm({{ log.id }})">
+                            <i class="bi bi-pencil-square"></i>
+                        </button>
+                        <form method="POST" action="{{ url_for('main.manage_time_logs', date=selected_date_str, employee_id=request.args.get('employee_id','all')) }}" class="d-inline" onsubmit="return confirm('Sei sicuro di voler eliminare questa timbratura?');">
+                            <input type="hidden" name="action" value="delete_log">
+                            <input type="hidden" name="log_id_delete" value="{{ log.id }}">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Elimina">
+                                <i class="bi bi-trash-fill"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="edit_form_row_{{ log.id }}" style="display: none;">
+                    <td colspan="6">
+                        <form method="POST" action="{{ url_for('main.manage_time_logs', date=selected_date_str, employee_id=request.args.get('employee_id','all')) }}">
+                            <input type="hidden" name="action" value="edit_log">
+                            <input type="hidden" name="log_id" value="{{ log.id }}">
+                            <div class="row p-2 align-items-end gy-2 gx-3 border rounded">
+                                <div class="col-md-3">
+                                    <label for="edit_clock_in_{{ log.id }}" class="form-label text-small">Entrata (UTC)</label>
+                                    <input type="datetime-local" class="form-control form-control-sm"
+                                           name="edit_clock_in_{{ log.id }}" id="edit_clock_in_{{ log.id }}"
+                                           value="{{ log.clock_in_time.strftime('%Y-%m-%dT%H:%M') if log.clock_in_time else '' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="edit_clock_out_{{ log.id }}" class="form-label text-small">Uscita (UTC)</label>
+                                    <input type="datetime-local" class="form-control form-control-sm"
+                                           name="edit_clock_out_{{ log.id }}" id="edit_clock_out_{{ log.id }}"
+                                           value="{{ log.clock_out_time.strftime('%Y-%m-%dT%H:%M') if log.clock_out_time else '' }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="edit_notes_{{ log.id }}" class="form-label text-small">Note</label>
+                                    <input type="text" class="form-control form-control-sm" name="edit_notes_{{ log.id }}" value="{{ log.notes if log.notes else '' }}">
+                                </div>
+                                <div class="col-md-auto">
+                                    <button type="submit" class="btn btn-primary btn-sm">Salva</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleEditForm({{ log.id }})">Annulla</button>
+                                </div>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">Nessuna timbratura trovata per i filtri selezionati.</div>
+    {% endif %}
+
+    <hr class="my-4">
+
+    <!-- Form Aggiunta Manuale Timbratura -->
+    <h4><i class="bi bi-journal-plus"></i> Aggiungi Registrazione Manuale</h4>
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('main.manage_time_logs', date=selected_date_str, employee_id=request.args.get('employee_id','all')) }}">
+                <input type="hidden" name="action" value="add_manual_log">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="manual_employee_id" class="form-label">Dipendente <span class="text-danger">*</span></label>
+                        <select class="form-select" id="manual_employee_id" name="manual_employee_id" required>
+                            <option value="" selected disabled>-- Seleziona Dipendente --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}">{{ emp.full_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="manual_clock_in" class="form-label">Entrata (Data e Ora UTC) <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control" id="manual_clock_in" name="manual_clock_in" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="manual_clock_out" class="form-label">Uscita (Data e Ora UTC) <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control" id="manual_clock_out" name="manual_clock_out" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="manual_notes" class="form-label">Note</label>
+                        <input type="text" class="form-control" id="manual_notes" name="manual_notes">
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle"></i> Aggiungi Registrazione</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function toggleEditForm(logId) {
+    const formRow = document.getElementById('edit_form_row_' + logId);
+    const displayRow = document.getElementById('log_row_' + logId);
+    if (formRow.style.display === 'none') {
+        formRow.style.display = 'table-row';
+        // displayRow.style.display = 'none'; // Optionally hide the display row
+    } else {
+        formRow.style.display = 'none';
+        // displayRow.style.display = 'table-row';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const employeeSelect = document.getElementById('quickActionEmployeeSelect');
+    const clockInBtn = document.getElementById('quickClockInBtn');
+    const clockOutBtn = document.getElementById('quickClockOutBtn');
+
+    function updateQuickActionButtons() {
+        if (!employeeSelect || !clockInBtn || !clockOutBtn) return;
+
+        const selectedOption = employeeSelect.options[employeeSelect.selectedIndex];
+        if (!selectedOption || selectedOption.value === "") {
+            clockInBtn.disabled = true;
+            clockOutBtn.disabled = true;
+            return;
+        }
+
+        const isClockedIn = selectedOption.dataset.clockedIn === 'true';
+        clockInBtn.disabled = isClockedIn;
+        clockOutBtn.disabled = !isClockedIn;
+    }
+
+    if (employeeSelect) {
+        employeeSelect.addEventListener('change', updateQuickActionButtons);
+        updateQuickActionButtons(); // Initial state
+    }
+});
+</script>
+{% endblock %}

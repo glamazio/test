@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Impostazioni - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-gear-fill"></i> Impostazioni Applicazione</h2>
+    <p>Configura le preferenze generali, notifiche e altre opzioni dell'applicazione.</p>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    Preferenze Generali
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.settings') }}">
+                        {# {{ form.csrf_token }} if using WTForms #}
+
+                        <div class="mb-3">
+                            <label for="timezone" class="form-label">Fuso Orario del Negozio</label>
+                            <select class="form-select" id="timezone" name="timezone" disabled>
+                                <option selected>Europe/Rome (Non modificabile attualmente)</option>
+                                <!-- Elenco fusi orari da pytz o simile -->
+                            </select>
+                            <small class="form-text text-muted">
+                                Attualmente l'applicazione utilizza UTC per le registrazioni interne e assume orari locali per la visualizzazione.
+                                La selezione del fuso orario specifico del negozio sarà implementata in futuro per una gestione più precisa.
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="notification_email" class="form-label">Email per Notifiche Amministrative</label>
+                            <input type="email" class="form-control" id="notification_email" name="notification_email" placeholder="admin@example.com" disabled>
+                            <small class="form-text text-muted">Le notifiche non sono ancora attive.</small>
+                        </div>
+
+                        <fieldset class="mb-3" disabled>
+                            <legend class="h6">Impostazioni Notifiche Dipendenti (Non implementato)</legend>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify_shift_changes" name="notify_shift_changes">
+                                <label class="form-check-label" for="notify_shift_changes">
+                                    Notifica i dipendenti via email per modifiche ai turni
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="notify_upcoming_shift" name="notify_upcoming_shift">
+                                <label class="form-check-label" for="notify_upcoming_shift">
+                                    Invia promemoria per i turni imminenti (es. 24 ore prima)
+                                </label>
+                            </div>
+                        </fieldset>
+
+                        <button type="submit" class="btn btn-primary" disabled><i class="bi bi-save"></i> Salva Impostazioni (Non Attivo)</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Informazioni Sistema</div>
+                <div class="card-body">
+                    <p><strong>Versione Flask:</strong> {{ flask_version if flask_version else 'N/D' }}</p>
+                    <p><strong>Versione Python:</strong> {{ python_version if python_version else 'N/D' }}</p>
+                    <p><strong>Database:</strong> {{ db_engine if db_engine else 'SQLite (default)' }}</p>
+                    <p class="text-muted">Queste informazioni sono indicative e potrebbero richiedere l'invio esplicito dei dati dalla route.</p>
+                </div>
+            </div>
+             <div class="card mt-3">
+                <div class="card-header">Operazioni Dati</div>
+                <div class="card-body">
+                    <button class="btn btn-info btn-sm mb-2 w-100" disabled>Esporta Dati (Non Impl.)</button>
+                    <button class="btn btn-warning btn-sm mb-2 w-100" disabled>Importa Dati (Non Impl.)</button>
+                    <button class="btn btn-danger btn-sm w-100" disabled>Reset Dati Applicazione (Non Impl.)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Script specifici per la pagina impostazioni, se necessari
+document.addEventListener('DOMContentLoaded', function () {
+    // Esempio: caricare dinamicamente i fusi orari
+});
+</script>
+{% endblock %}
+
+{#
+Per visualizzare flask_version, python_version, db_engine, dovresti passarli dalla route `settings` in `routes.py`:
+import sys
+import flask
+from sqlalchemy import create_engine
+
+@bp.route('/settings', methods=['GET', 'POST'])
+def settings():
+    # ...
+    flask_v = flask.__version__
+    python_v = sys.version
+    db_eng_name = db.engine.url.drivername # o una stringa più descrittiva
+    return render_template('settings.html',
+                           flask_version=flask_v,
+                           python_version=python_v,
+                           db_engine=db_eng_name)
+#}

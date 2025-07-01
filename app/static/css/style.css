@@ -1,0 +1,161 @@
+/* Custom styles can go here */
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+main.container {
+    flex: 1;
+}
+
+.table-responsive-sm {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Sticky footer */
+/* Ensure footer is at the bottom */
+/* body { display: flex; flex-direction: column; min-height: 100vh; } */
+/* main { flex: 1; } */
+
+
+/* Calendar view for shifts */
+.calendar-container {
+    margin-top: 20px;
+}
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    border: 1px solid #ddd;
+}
+.calendar-day-header {
+    background-color: #f8f9fa;
+    padding: 8px;
+    text-align: center;
+    font-weight: bold;
+    border-bottom: 1px solid #ddd;
+}
+.calendar-day {
+    border: 1px solid #eee;
+    padding: 8px;
+    min-height: 120px; /* Adjust as needed */
+    position: relative; /* For absolute positioning of date number */
+}
+.calendar-day .date-number {
+    font-size: 0.8em;
+    color: #6c757d;
+    position: absolute;
+    top: 5px;
+    right: 5px;
+}
+.calendar-day.today {
+    background-color: #e9f5ff;
+}
+.calendar-day.other-month .date-number {
+    color: #ced4da;
+}
+.shift-entry {
+    background-color: #0d6efd; /* Primary color */
+    color: white;
+    padding: 3px 6px;
+    margin-bottom: 3px;
+    border-radius: 0.25rem;
+    font-size: 0.85em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer; /* If you add details on hover/click */
+}
+.shift-entry:hover {
+    opacity: 0.8;
+}
+.shift-entry small {
+    display: block;
+    font-size: 0.9em;
+}
+
+/* Modal styling (if using Bootstrap modals for shift details) */
+.modal-body .shift-detail {
+    margin-bottom: 5px;
+}
+.modal-body .shift-detail strong {
+    display: inline-block;
+    width: 100px;
+}
+
+/* Make form elements a bit more compact in some cases */
+.form-inline-group label {
+    margin-right: 0.5rem;
+}
+.form-inline-group .form-control {
+    display: inline-block;
+    width: auto;
+    vertical-align: middle;
+}
+
+/* Timelog specific */
+.timelog-actions .btn {
+    margin-right: 5px;
+}
+
+/* Employee card (example) */
+.employee-card {
+    margin-bottom: 1rem;
+}
+
+/* Utility for small text */
+.text-small {
+    font-size: 0.875em;
+}
+
+/* Button to appear as link */
+.btn-link-style {
+    background: none!important;
+    border: none;
+    padding: 0!important;
+    color: #0d6efd; /* Bootstrap link color */
+    text-decoration: underline;
+    cursor: pointer;
+}
+.btn-link-style-danger {
+    color: #dc3545; /* Bootstrap danger color */
+}
+
+.weekday-label {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+/* Ensure form groups in manage_schedule have some spacing */
+.schedule-day-form-group {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 0.25rem;
+}
+.schedule-day-form-group legend {
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* For time log edit form in modal or inline */
+.timelog-edit-form td {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* Adjust navbar toggler for better visibility on dark backgrounds if needed */
+.navbar-dark .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}

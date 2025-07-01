@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2><i class="bi bi-calendar-plus"></i> {{ form_title }}</h2>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="POST" action="{{ form_action_url }}">
+                {# {{ form.csrf_token }} Flask-WTF CSRF token if using WTForms #}
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="employee_id" class="form-label">Dipendente <span class="text-danger">*</span></label>
+                        <select class="form-select" id="employee_id" name="employee_id" required>
+                            <option value="" disabled {% if not shift_data or not shift_data.employee_id %}selected{% endif %}>-- Seleziona Dipendente --</option>
+                            {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if shift_data and shift_data.employee_id == emp.id %}selected{% endif %}>
+                                {{ emp.full_name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="shift_date" class="form-label">Data Turno <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="shift_date" name="shift_date"
+                               value="{{ shift_data.shift_date if shift_data else initial_date_str }}" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="start_time" class="form-label">Ora Inizio <span class="text-danger">*</span></label>
+                        <select class="form-select" id="start_time" name="start_time" required>
+                            {% for slot in time_slots %}
+                            <option value="{{ slot }}" {% if shift_data and shift_data.start_time == slot %}selected{% endif %}>{{ slot }}</option>
+                            {% endfor %}
+                        </select>
+                        {# Oppure: <input type="time" class="form-control" id="start_time" name="start_time" value="{{ shift_data.start_time if shift_data else '' }}" step="1800" required> #}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="end_time" class="form-label">Ora Fine <span class="text-danger">*</span></label>
+                        <select class="form-select" id="end_time" name="end_time" required>
+                            {% for slot in time_slots %}
+                            <option value="{{ slot }}" {% if shift_data and shift_data.end_time == slot %}selected{% endif %}>{{ slot }}</option>
+                            {% endfor %}
+                        </select>
+                        {# Oppure: <input type="time" class="form-control" id="end_time" name="end_time" value="{{ shift_data.end_time if shift_data else '' }}" step="1800" required> #}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Note Aggiuntive</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3">{{ shift_data.notes if shift_data else '' }}</textarea>
+                </div>
+
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save"></i> {{ "Aggiorna Turno" if shift_data else "Salva Turno" }}
+                    </button>
+                    <a href="{{ url_for('main.view_shifts', date=(shift_data.shift_date if shift_data else initial_date_str)) }}" class="btn btn-secondary">
+                        Annulla
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Eventuali script per validazione orari, calcolo durata, etc.
+    // Ad esempio, assicurarsi che end_time sia dopo start_time.
+    // La validazione principale avviene lato server.
+
+    // const startTimeSelect = document.getElementById('start_time');
+    // const endTimeSelect = document.getElementById('end_time');
+
+    // function validateTime() {
+    //     if (startTimeSelect.value && endTimeSelect.value && endTimeSelect.value <= startTimeSelect.value) {
+    //         endTimeSelect.setCustomValidity("L'ora di fine deve essere successiva all'ora di inizio.");
+    //     } else {
+    //         endTimeSelect.setCustomValidity('');
+    //     }
+    // }
+
+    // if(startTimeSelect && endTimeSelect) {
+    //    startTimeSelect.addEventListener('change', validateTime);
+    //    endTimeSelect.addEventListener('change', validateTime);
+    // }
+});
+</script>
+{% endblock %}
